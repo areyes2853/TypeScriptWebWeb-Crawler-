@@ -1,0 +1,24 @@
+{
+  "name": "typescriptwebweb-crawler-",
+  "version": "1.0.0",
+  "description": "scraping",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/areyes2853/TypeScriptWebWeb-Crawler-.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/areyes2853/TypeScriptWebWeb-Crawler-/issues"
+  },
+  "homepage": "https://github.com/areyes2853/TypeScriptWebWeb-Crawler-#readme",
+  "devDependencies": {
+    "@types/node": "^24.3.3",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}
