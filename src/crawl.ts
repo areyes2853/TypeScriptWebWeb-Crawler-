@@ -29,6 +29,26 @@
  export function getFirstParagraphFromHTML(html: string): string {
    // FIXED: Use 'html' parameter, not global htmlContent
    const dom = new JSDOM(html);
-   console.log(dom.window.document.querySelector("p")?.textContent);
-   return dom.window.document.querySelector("p")?.textContent || "";
+   console.log(dom.window.document.querySelector("main p")?.textContent);
+   return dom.window.document.querySelector("main p")?.textContent || "";
  }
+
+export function getURLsFromHTML(html: string, baseURL: string): string[] {
+  const dom = new JSDOM(html);
+  const anchorElements = dom.window.document.querySelectorAll("a");
+  const urls: string[] = [];
+
+  anchorElements.forEach((element) => {
+    const href = element.getAttribute("href");
+    if (href) {
+      try {
+        const urlObj = new URL(href, baseURL);
+        urls.push(urlObj.href);
+      } catch (error) {
+        // Ignore invalid URLs
+      }
+    }
+  });
+
+  return urls;
+}
