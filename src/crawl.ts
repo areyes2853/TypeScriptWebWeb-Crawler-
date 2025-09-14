@@ -34,21 +34,49 @@
  }
 
 export function getURLsFromHTML(html: string, baseURL: string): string[] {
-  const dom = new JSDOM(html);
-  const anchorElements = dom.window.document.querySelectorAll("a");
   const urls: string[] = [];
+  try {
+    const dom = new JSDOM(html);
+    const doc = dom.window.document;
+    const anchors = doc.querySelectorAll("a");
 
-  anchorElements.forEach((element) => {
-    const href = element.getAttribute("href");
-    if (href) {
+    anchors.forEach((anchor) => {
+      const href = anchor.getAttribute("href");
+      if (!href) return;
+
       try {
-        const urlObj = new URL(href, baseURL);
-        urls.push(urlObj.href);
-      } catch (error) {
-        // Ignore invalid URLs
+        const absoluteURL = new URL(href, baseURL).toString();
+        urls.push(absoluteURL);
+      } catch (err) {
+        console.error(`invalid href '${href}':`, err);
       }
-    }
-  });
-
+    });
+  } catch (err) {
+    console.error("failed to parse HTML:", err);
+  }
   return urls;
+}
+
+export function getImagesFromHTML(html: string, baseURL: string): string[] {
+  const imageURLs: string[] = [];
+  try {
+    const dom = new JSDOM(html);
+    const doc = dom.window.document;
+    const images = doc.querySelectorAll("img");
+
+    images.forEach((img) => {
+      const src = img.getAttribute("src");
+      if (!src) return;
+
+      try {
+        const absoluteURL = new URL(src, baseURL).toString();
+        imageURLs.push(absoluteURL);
+      } catch (err) {
+        console.error(`invalid src '${src}':`, err);
+      }
+    });
+  } catch (err) {
+    console.error("failed to parse HTML:", err);
+  }
+  return imageURLs;
 }
