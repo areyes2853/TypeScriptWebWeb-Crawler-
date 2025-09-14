@@ -1,7 +1,15 @@
  import { JSDOM } from "jsdom";
 
  // Remove or comment out this global variable when testing
- // const htmlContent = `<html>...`
+// const htmlContent = `<html>...`
+ 
+interface ExtractedPageData {
+  url: string;
+  h1: string;
+  first_paragraph: string;
+  outgoing_links: string[];
+  image_urls: string[];
+}
 
  export function normalizeURL(url: string): string {
    try {
@@ -79,4 +87,57 @@ export function getImagesFromHTML(html: string, baseURL: string): string[] {
     console.error("failed to parse HTML:", err);
   }
   return imageURLs;
+}
+
+export function extractPageData(
+  html: string,
+  pageURL: string
+): ExtractedPageData {
+  const dom = new JSDOM(html);
+  const document = dom.window.document;
+
+  // Extract H1 (reusing your existing logic)
+  const h1 = document.querySelector("h1")?.textContent || "";
+
+  // Extract first paragraph (reusing your existing logic)
+  const firstParagraph = document.querySelector("p")?.textContent || "";
+
+  // Extract outgoing links (reusing your existing logic)
+  const outgoingLinks: string[] = [];
+  const anchorTags = document.querySelectorAll("a");
+  anchorTags.forEach((anchor) => {
+    const href = anchor.getAttribute("href");
+    if (href) {
+      try {
+        const absoluteURL = new URL(href, pageURL);
+        outgoingLinks.push(absoluteURL.href);
+      } catch (error) {
+        console.warn(`Invalid URL found: ${href}`);
+      }
+    }
+  });
+
+  // Extract image URLs (new logic for images)
+  const imageURLs: string[] = [];
+  const imageTags = document.querySelectorAll("img");
+  imageTags.forEach((img) => {
+    const src = img.getAttribute("src");
+    if (src) {
+      try {
+        const absoluteURL = new URL(src, pageURL);
+        imageURLs.push(absoluteURL.href);
+      } catch (error) {
+        console.warn(`Invalid image URL found: ${src}`);
+      }
+    }
+  });
+
+  // Return the combined data object
+  return {
+    url: pageURL,
+    h1: h1,
+    first_paragraph: firstParagraph,
+    outgoing_links: outgoingLinks,
+    image_urls: imageURLs,
+  };
 }

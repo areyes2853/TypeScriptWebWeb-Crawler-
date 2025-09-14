@@ -5,6 +5,7 @@ import {
   getFirstParagraphFromHTML,
   getURLsFromHTML,
   getImagesFromHTML,
+  extractPageData,
 } from "./crawl";
 
 test("normalizeURL: removes protocol and trailing slash", () => {
@@ -103,5 +104,28 @@ test("getImagesFromHTML multiple", () => {
     "https://blog.boot.dev/logo.png",
     "https://cdn.boot.dev/banner.jpg",
   ];
+  expect(actual).toEqual(expected);
+});
+
+test("extractPageData basic", () => {
+  const inputURL = "https://blog.boot.dev";
+  const inputBody = `
+    <html><body>
+      <h1>Test Title</h1>
+      <p>This is the first paragraph.</p>
+      <a href="/link1">Link 1</a>
+      <img src="/image1.jpg" alt="Image 1">
+    </body></html>
+  `;
+
+  const actual = extractPageData(inputBody, inputURL);
+  const expected = {
+    url: "https://blog.boot.dev",
+    h1: "Test Title",
+    first_paragraph: "This is the first paragraph.",
+    outgoing_links: ["https://blog.boot.dev/link1"],
+    image_urls: ["https://blog.boot.dev/image1.jpg"],
+  };
+
   expect(actual).toEqual(expected);
 });
