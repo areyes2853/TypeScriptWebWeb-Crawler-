@@ -1,143 +1,137 @@
- import { JSDOM } from "jsdom";
+// Add to crawl.ts
+import { JSDOM } from "jsdom";
 
- // Remove or comment out this global variable when testing
-// const htmlContent = `<html>...`
- 
-interface ExtractedPageData {
-  url: string;
-  h1: string;
-  first_paragraph: string;
-  outgoing_links: string[];
-  image_urls: string[];
+// Update getHTML to return the HTML string instead of just printing
+export async function getHTML(url: string): Promise<string | null> {
+  try {
+    console.log(`Fetching: ${url}`);
+
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "BootCrawler/1.0",
+      },
+    });
+
+    if (response.status >= 400) {
+      console.log(`Error: HTTP ${response.status} - ${response.statusText}`);
+      return null;
+    }
+
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("text/html")) {
+      console.log(`Error: Response is not HTML. Content-Type: ${contentType}`);
+      return null;
+    }
+
+    const htmlBody = await response.text();
+    return htmlBody;
+  } catch (error) {
+    if (error instanceof Error) {
+      console.log(`Error fetching ${url}:`, error.message);
+    } else {
+      console.log(`Error fetching ${url}:`, error);
+    }
+    return null;
+  }
 }
 
- export function normalizeURL(url: string): string {
-   try {
-     const urlObj = new URL(url);
-     let normalized = urlObj.hostname + urlObj.pathname;
+// Helper function to check if URL is same domain
+function isSameDomain(url1: string, url2: string): boolean {
+  try {
+    const domain1 = new URL(url1).hostname;
+    const domain2 = new URL(url2).hostname;
+    return domain1 === domain2;
+  } catch (error) {
+    return false;
+  }
+}
 
-     // Remove trailing slash
-     if (normalized.endsWith("/")) {
-       normalized = normalized.slice(0, -1);
-     }
+// Main crawling function with recursion
+export async function crawlPage(
+  baseURL: string,
+  currentURL: string = baseURL,
+  pages: Record<string, number> = {}
+): Promise<Record<string, number>> {
+  console.log(`\n🕷️  Crawling: ${currentURL}`);
 
-     return normalized;
-   } catch (error) {
-     throw new Error(`Invalid URL: ${url}`);
-   }
- }
+  // STEP 1: Check if currentURL is same domain as baseURL
+  if (!isSameDomain(baseURL, currentURL)) {
+    console.log(`⏭️  Skipping external URL: ${currentURL}`);
+    return pages;
+  }
 
- export function getH1FromHTML(html: string): string {
-   // FIXED: Use 'html' parameter, not global htmlContent
-   const dom = new JSDOM(html);
-   console.log(dom.window.document.querySelector("h1")?.textContent);
-   return dom.window.document.querySelector("h1")?.textContent || "";
- }
+  // STEP 2: Get normalized version of currentURL
+  const normalizedURL = normalizeURL(currentURL);
+  console.log(`📝 Normalized: ${normalizedURL}`);
 
- export function getFirstParagraphFromHTML(html: string): string {
-   // FIXED: Use 'html' parameter, not global htmlContent
-   const dom = new JSDOM(html);
-   console.log(dom.window.document.querySelector("main p")?.textContent);
-   return dom.window.document.querySelector("main p")?.textContent || "";
- }
+  // STEP 3: Check if we've already seen this page
+  if (pages[normalizedURL]) {
+    pages[normalizedURL]++;
+    console.log(
+      `🔄 Already seen ${normalizedURL} (count: ${pages[normalizedURL]})`
+    );
+    return pages;
+  }
+
+  // STEP 4: Add new page to our tracking object
+  pages[normalizedURL] = 1;
+  console.log(`✅ Added new page: ${normalizedURL}`);
+
+  // STEP 5: Get HTML from current URL
+  const html = await getHTML(currentURL);
+  if (!html) {
+    console.log(`❌ Failed to get HTML from: ${currentURL}`);
+    return pages;
+  }
+
+  console.log(`📄 Successfully fetched HTML (${html.length} characters)`);
+
+  // STEP 6: Extract all URLs from the HTML
+  const foundURLs = getURLsFromHTML(html, baseURL);
+  console.log(`🔗 Found ${foundURLs.length} links on this page`);
+
+  // STEP 7: Recursively crawl each URL found
+  for (const foundURL of foundURLs) {
+    console.log(`🔍 Processing link: ${foundURL}`);
+    // RECURSIVE CALL - this is where the magic happens!
+    pages = await crawlPage(baseURL, foundURL, pages);
+  }
+
+  // STEP 8: Return the updated pages object
+  console.log(`✨ Completed crawling: ${currentURL}`);
+  return pages;
+}
+
+// Your existing helper functions
+export function normalizeURL(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    let normalized = urlObj.hostname + urlObj.pathname;
+    if (normalized.endsWith("/")) {
+      normalized = normalized.slice(0, -1);
+    }
+    return normalized;
+  } catch (error) {
+    throw new Error(`Invalid URL: ${url}`);
+  }
+}
 
 export function getURLsFromHTML(html: string, baseURL: string): string[] {
   const urls: string[] = [];
-  try {
-    const dom = new JSDOM(html);
-    const doc = dom.window.document;
-    const anchors = doc.querySelectorAll("a");
-
-    anchors.forEach((anchor) => {
-      const href = anchor.getAttribute("href");
-      if (!href) return;
-
-      try {
-        const absoluteURL = new URL(href, baseURL).toString();
-        urls.push(absoluteURL);
-      } catch (err) {
-        console.error(`invalid href '${href}':`, err);
-      }
-    });
-  } catch (err) {
-    console.error("failed to parse HTML:", err);
-  }
-  return urls;
-}
-
-export function getImagesFromHTML(html: string, baseURL: string): string[] {
-  const imageURLs: string[] = [];
-  try {
-    const dom = new JSDOM(html);
-    const doc = dom.window.document;
-    const images = doc.querySelectorAll("img");
-
-    images.forEach((img) => {
-      const src = img.getAttribute("src");
-      if (!src) return;
-
-      try {
-        const absoluteURL = new URL(src, baseURL).toString();
-        imageURLs.push(absoluteURL);
-      } catch (err) {
-        console.error(`invalid src '${src}':`, err);
-      }
-    });
-  } catch (err) {
-    console.error("failed to parse HTML:", err);
-  }
-  return imageURLs;
-}
-
-export function extractPageData(
-  html: string,
-  pageURL: string
-): ExtractedPageData {
   const dom = new JSDOM(html);
-  const document = dom.window.document;
+  const anchorTags = dom.window.document.querySelectorAll("a");
 
-  // Extract H1 (reusing your existing logic)
-  const h1 = document.querySelector("h1")?.textContent || "";
-
-  // Extract first paragraph (reusing your existing logic)
-  const firstParagraph = document.querySelector("p")?.textContent || "";
-
-  // Extract outgoing links (reusing your existing logic)
-  const outgoingLinks: string[] = [];
-  const anchorTags = document.querySelectorAll("a");
   anchorTags.forEach((anchor) => {
     const href = anchor.getAttribute("href");
     if (href) {
       try {
-        const absoluteURL = new URL(href, pageURL);
-        outgoingLinks.push(absoluteURL.href);
+        const absoluteURL = new URL(href, baseURL);
+        urls.push(absoluteURL.href);
       } catch (error) {
-        console.warn(`Invalid URL found: ${href}`);
+        // Skip invalid URLs
       }
     }
   });
 
-  // Extract image URLs (new logic for images)
-  const imageURLs: string[] = [];
-  const imageTags = document.querySelectorAll("img");
-  imageTags.forEach((img) => {
-    const src = img.getAttribute("src");
-    if (src) {
-      try {
-        const absoluteURL = new URL(src, pageURL);
-        imageURLs.push(absoluteURL.href);
-      } catch (error) {
-        console.warn(`Invalid image URL found: ${src}`);
-      }
-    }
-  });
-
-  // Return the combined data object
-  return {
-    url: pageURL,
-    h1: h1,
-    first_paragraph: firstParagraph,
-    outgoing_links: outgoingLinks,
-    image_urls: imageURLs,
-  };
+  return urls;
 }

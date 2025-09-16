@@ -6,7 +6,7 @@ import {
   getURLsFromHTML,
   getImagesFromHTML,
   extractPageData,
-} from "./crawl";
+} from "./crawlOLD";
 
 test("normalizeURL: removes protocol and trailing slash", () => {
   const input = "https://blog.boot.dev/path/";
